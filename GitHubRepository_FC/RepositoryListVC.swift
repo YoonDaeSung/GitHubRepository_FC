@@ -49,8 +49,8 @@ class RepositoryListVC: UITableViewController {
 			.flatMap { request -> Observable<(response: HTTPURLResponse, data: Data)> in
 				return URLSession.shared.rx.response(request: request)
 			}
-			.filter { response, _ in
-				return 200..<300 ~= responds.statusCode
+			.filter { responds, _ in
+                return 200..<300 ~= responds.statusCode
 			}
 			.map { _, data -> [[String: Any]] in
 				guard let json = try? JSONSerialization.jsonObject(with: data, options: []),
@@ -67,13 +67,28 @@ class RepositoryListVC: UITableViewController {
 					guard let id = dic["id"] as? Int,
 								let name = dic["name"] as? String,
 								let description = dic["description"] as? String,
-								let stargazersCount = dic["stargazers_count"],
+								let stargazersCount = dic["stargazers_count"] as? Int,
 								let language = dic["language"] as? String else {
 						return nil
 					}
-								
+								return Repository(
+                                    id: id,
+                                    name: name,
+                                    description: description,
+                                    stargazersCount: stargazersCount,
+                                    language: language
+                                )
 				}
 			}
+            .subscribe(onNext: { [weak self] newRepositories in
+                self?.repositories.onNext(newRepositories)
+                
+                DispatchQueue.main.async {
+                    self?.tableView.reloadData()
+                    self?.refreshControl?.endRefreshing()
+                }
+            })
+            .disposed(by: disposeBag)
 	}
 }
 
